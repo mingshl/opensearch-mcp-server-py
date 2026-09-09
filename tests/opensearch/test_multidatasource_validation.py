@@ -17,7 +17,7 @@ from opensearch.client import (
 class TestGetAllowedDatasourcesFromHeaders:
     """Tests for _get_allowed_datasources_from_headers()."""
 
-    @patch('opensearch.client.request_ctx')
+    @patch('opensearch.client.request_context_var')
     def test_legacy_single_header(self, mock_request_ctx):
         """Test extraction of single non-indexed opensearch-url header."""
         from starlette.requests import Request
@@ -27,15 +27,13 @@ class TestGetAllowedDatasourcesFromHeaders:
             'opensearch-url': 'https://domain1.us-west-2.es.amazonaws.com'
         }
 
-        mock_context = Mock()
-        mock_context.request = mock_request
-        mock_request_ctx.get.return_value = mock_context
+        mock_request_ctx.get.return_value = mock_request
 
         result = _get_allowed_datasources_from_headers()
 
         assert result == ['https://domain1.us-west-2.es.amazonaws.com']
 
-    @patch('opensearch.client.request_ctx')
+    @patch('opensearch.client.request_context_var')
     def test_indexed_multiple_headers(self, mock_request_ctx):
         """Test extraction of multiple indexed opensearch-url headers."""
         from starlette.requests import Request
@@ -47,9 +45,7 @@ class TestGetAllowedDatasourcesFromHeaders:
             'opensearch-url-2': 'https://domain2.eu-west-1.es.amazonaws.com',
         }
 
-        mock_context = Mock()
-        mock_context.request = mock_request
-        mock_request_ctx.get.return_value = mock_context
+        mock_request_ctx.get.return_value = mock_request
 
         result = _get_allowed_datasources_from_headers()
 
@@ -59,7 +55,7 @@ class TestGetAllowedDatasourcesFromHeaders:
             'https://domain2.eu-west-1.es.amazonaws.com',
         ]
 
-    @patch('opensearch.client.request_ctx')
+    @patch('opensearch.client.request_context_var')
     def test_indexed_headers_with_gaps_stops_at_first_gap(self, mock_request_ctx):
         """Test that extraction stops at the first missing index."""
         from starlette.requests import Request
@@ -72,9 +68,7 @@ class TestGetAllowedDatasourcesFromHeaders:
             'opensearch-url-3': 'https://domain3.eu-west-1.es.amazonaws.com',  # Should not be extracted
         }
 
-        mock_context = Mock()
-        mock_context.request = mock_request
-        mock_request_ctx.get.return_value = mock_context
+        mock_request_ctx.get.return_value = mock_request
 
         result = _get_allowed_datasources_from_headers()
 
@@ -84,7 +78,7 @@ class TestGetAllowedDatasourcesFromHeaders:
             'https://collection1.us-east-1.aoss.amazonaws.com',
         ]
 
-    @patch('opensearch.client.request_ctx')
+    @patch('opensearch.client.request_context_var')
     def test_no_headers_returns_empty_list(self, mock_request_ctx):
         """Test that no headers returns empty list."""
         from starlette.requests import Request
@@ -92,15 +86,13 @@ class TestGetAllowedDatasourcesFromHeaders:
         mock_request = Mock(spec=Request)
         mock_request.headers = {}
 
-        mock_context = Mock()
-        mock_context.request = mock_request
-        mock_request_ctx.get.return_value = mock_context
+        mock_request_ctx.get.return_value = mock_request
 
         result = _get_allowed_datasources_from_headers()
 
         assert result == []
 
-    @patch('opensearch.client.request_ctx')
+    @patch('opensearch.client.request_context_var')
     def test_empty_header_value_returns_empty_list(self, mock_request_ctx):
         """Test that empty header value returns empty list."""
         from starlette.requests import Request
@@ -108,15 +100,13 @@ class TestGetAllowedDatasourcesFromHeaders:
         mock_request = Mock(spec=Request)
         mock_request.headers = {'opensearch-url': '   '}  # Just whitespace
 
-        mock_context = Mock()
-        mock_context.request = mock_request
-        mock_request_ctx.get.return_value = mock_context
+        mock_request_ctx.get.return_value = mock_request
 
         result = _get_allowed_datasources_from_headers()
 
         assert result == []
 
-    @patch('opensearch.client.request_ctx')
+    @patch('opensearch.client.request_context_var')
     def test_no_request_context_returns_empty_list(self, mock_request_ctx):
         """Test that no request context returns empty list."""
         mock_request_ctx.get.return_value = None
@@ -298,7 +288,7 @@ class TestMultiDatasourceIntegration:
         from mcp_server_opensearch.global_state import set_mode
         set_mode('single')
 
-    @patch('opensearch.client.request_ctx')
+    @patch('opensearch.client.request_context_var')
     @patch('opensearch.client.AsyncOpenSearch')
     @patch('opensearch.client.get_aws_region_single_mode')
     def test_single_mode_with_validation_success(
@@ -324,9 +314,7 @@ class TestMultiDatasourceIntegration:
             'aws-service-name': 'es',
         }
 
-        mock_context = Mock()
-        mock_context.request = mock_request
-        mock_request_ctx.get.return_value = mock_context
+        mock_request_ctx.get.return_value = mock_request
 
         mock_get_region.return_value = 'us-west-2'
         mock_client = Mock()
@@ -336,7 +324,7 @@ class TestMultiDatasourceIntegration:
         client = initialize_client(baseToolArgs(opensearch_cluster_name=''))
         assert client == mock_client
 
-    @patch('opensearch.client.request_ctx')
+    @patch('opensearch.client.request_context_var')
     def test_single_mode_with_validation_failure(self, mock_request_ctx):
         """Test single mode with header auth and failed validation."""
         import os
@@ -358,9 +346,7 @@ class TestMultiDatasourceIntegration:
             'aws-session-token': 'test-token',
         }
 
-        mock_context = Mock()
-        mock_context.request = mock_request
-        mock_request_ctx.get.return_value = mock_context
+        mock_request_ctx.get.return_value = mock_request
 
         # Should fail - requested URL not in allowlist
         with pytest.raises(AuthenticationError) as exc_info:
@@ -368,7 +354,7 @@ class TestMultiDatasourceIntegration:
 
         assert 'not authorized' in str(exc_info.value)
 
-    @patch('opensearch.client.request_ctx')
+    @patch('opensearch.client.request_context_var')
     @patch('opensearch.client.AsyncOpenSearch')
     @patch('opensearch.client.get_aws_region_single_mode')
     def test_multi_datasource_headers_indexed_format(
@@ -383,25 +369,26 @@ class TestMultiDatasourceIntegration:
         # Enable header auth
         os.environ['OPENSEARCH_HEADER_AUTH'] = 'true'
 
-        # Mock request with indexed headers - requesting index 1
+        # Mock request with indexed headers for allowlist + requested URL
         mock_request = Mock(spec=Request)
         mock_request.headers = {
+            # Allowlist (indexed headers)
             'opensearch-url-0': 'https://domain1.com',
-            'opensearch-url-1': 'https://domain2.com',  # This will be used (default index 0 in _get_auth_from_headers)
-            'aws-region-0': 'us-west-2',
-            'aws-region-1': 'us-east-1',
+            'opensearch-url-1': 'https://domain2.com',
+            # Requested URL (non-indexed header)
+            'opensearch-url': 'https://domain1.com',  # Request domain1 from allowlist
+            'aws-region': 'us-west-2',
+            'aws-service-name': 'es',
             'aws-access-key-id': 'test-key',
             'aws-secret-access-key': 'test-secret',
         }
 
-        mock_context = Mock()
-        mock_context.request = mock_request
-        mock_request_ctx.get.return_value = mock_context
+        mock_request_ctx.get.return_value = mock_request
 
         mock_get_region.return_value = 'us-west-2'
         mock_client = Mock()
         mock_opensearch.return_value = mock_client
 
-        # Should succeed - domain1.com is in allowlist (index 0 is used by default)
+        # Should succeed - domain1.com is in allowlist
         client = initialize_client(baseToolArgs(opensearch_cluster_name=''))
         assert client == mock_client

@@ -1226,8 +1226,11 @@ def _get_auth_from_headers() -> Dict[str, Optional[str]]:
 def _get_allowed_datasources_from_headers() -> list[str]:
     """Extract the allowlist of datasources from indexed headers.
 
-    Supports both indexed (opensearch-url-0, opensearch-url-1, ...) and legacy
-    non-indexed (opensearch-url) header formats.
+    For multi-datasource support, the allowlist is provided via indexed headers:
+    opensearch-url-0, opensearch-url-1, etc.
+
+    For backward compatibility, if no indexed headers are found, falls back to
+    the non-indexed opensearch-url header (single datasource).
 
     Returns:
         List of allowed OpenSearch URLs from headers.
@@ -1239,12 +1242,6 @@ def _get_allowed_datasources_from_headers() -> list[str]:
         if request and isinstance(request, Request):
             headers = dict(request.headers)
 
-            # Check for legacy non-indexed header first (backward compatibility)
-            url = headers.get('opensearch-url', '').strip()
-            if url:
-                allowed_urls.append(url)
-                return allowed_urls
-
             # Extract indexed headers (opensearch-url-0, opensearch-url-1, ...)
             index = 0
             while True:
@@ -1254,6 +1251,12 @@ def _get_allowed_datasources_from_headers() -> list[str]:
                     break
                 allowed_urls.append(url)
                 index += 1
+
+            # If no indexed headers found, fall back to legacy non-indexed header
+            if not allowed_urls:
+                url = headers.get('opensearch-url', '').strip()
+                if url:
+                    allowed_urls.append(url)
     except Exception as e:
         logger.warning(f'Failed to extract allowed datasources from headers: {e}')
 
